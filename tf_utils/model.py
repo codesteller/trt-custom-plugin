@@ -1,9 +1,9 @@
 import tensorflow as tf
-from keras.models import Sequential
-from keras.layers import Dense, Flatten, Dropout, Activation, Conv2D, MaxPooling2D, LeakyReLU
+from keras.models import Sequential, load_model
+from keras.layers import InputLayer, Dense, Flatten, Activation, Conv2D, MaxPooling2D, LeakyReLU
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import Adam
-from keras.metrics import AUC
+from keras.backend import get_session
 import os
 
 
@@ -27,6 +27,7 @@ class Model:
         self.epochs = epochs
 
     def build_model(self):
+        self.model.add(InputLayer(input_shape=self.input_shape))
         self.model.add(Conv2D(32, kernel_size=(3, 3), activation='linear',
                               input_shape=self.input_shape, padding='same'))
         self.model.add(Activation('relu'))
@@ -59,15 +60,37 @@ class Model:
             os.makedirs(tensorboard_dir)
 
         # Create a callback that saves the model's weights
-        cp_callback = ModelCheckpoint(filepath=self.checkpoint_path, save_weights_only=True, verbose=1, period=2)
+        cp_callback = ModelCheckpoint(filepath=self.checkpoint_path, save_weights_only=True, verbose=1, period=1)
+        # cp_callback = ModelCheckpoint(filepath=self.checkpoint_path, monitor='val_acc', verbose=1,
+        #                               save_best_only=True, mode='max')
         tb_callback = TensorBoard(log_dir=tensorboard_dir, histogram_freq=0, write_graph=True, write_images=False)
         self.model.fit_generator(
-                train_data_gen,
-                steps_per_epoch=train_data_gen.samples // self.batch_size,
-                epochs=self.epochs,
-                validation_data=valid_data_gen,
-                validation_steps=valid_data_gen.samples // self.batch_size,
-                callbacks=[cp_callback, tb_callback])
+            train_data_gen,
+            steps_per_epoch=train_data_gen.samples // self.batch_size,
+            epochs=self.epochs,
+            validation_data=valid_data_gen,
+            validation_steps=valid_data_gen.samples // self.batch_size,
+            callbacks=[cp_callback, tb_callback])
+
+    def convert_checkpoint(self, final_checkpoint):
+        checkpoint_dir = os.path.dirname(final_checkpoint)
+        basename = os.path.basename(final_checkpoint).split(".")[0]
+        save_path = os.path.join(checkpoint_dir, "tf_ckpt", "final_model.ckpt")
+        # Add ops to save and restore all the variables.
+        saver = tf.train.Saver()
+        self.model.load_weights(final_checkpoint)
+        sess = get_session()
+        saver.save(sess, save_path)
+
+    def save(self, frozen_filename):
+        # First freeze the graph and remove training nodes.
+        output_names = self.model.output.op.name
+        sess = get_session()
+        frozen_graph = tf.graph_util.convert_variables_to_constants(sess, sess.graph.as_graph_def(), [output_names])
+        frozen_graph = tf.graph_util.remove_training_nodes(frozen_graph)
+        # Save the model
+        with open(frozen_filename, "wb") as ofile:
+            ofile.write(frozen_graph.SerializeToString())
 
 
 def test_case():
@@ -80,8 +103,20 @@ def test_case():
         return False
 
 
+def test_case2():
+    final_checkpoint = "/home/codesteller/workspace/ml_workspace/trt-custom-plugin/saved_model/" \
+                       "checkpoints/saved_model-0001.h5"
+    model = Model(input_shape=(150, 150, 3))
+    model.build_model()
+    model.convert_checkpoint(final_checkpoint)
+    print("done")
+
+
 if __name__ == "__main__":
     if test_case():
         print("Test Case Passed")
     else:
         print("Test Case Passed")
+
+    test_case2()
+

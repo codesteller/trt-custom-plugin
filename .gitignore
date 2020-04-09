@@ -127,3 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Project Directories
+.vscode
+.idea
+
+# Output Directories
+saved_model

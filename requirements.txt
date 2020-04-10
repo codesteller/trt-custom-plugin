@@ -1,0 +1,5 @@
+tensorflow_gpu<=1.15
+tensorrt<7.0
+keras
+pycuda
+matplotlib

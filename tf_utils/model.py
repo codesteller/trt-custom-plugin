@@ -5,6 +5,7 @@ from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import Adam
 from keras.backend import get_session
 import os
+from glob import glob
 
 
 class Model:
@@ -92,6 +93,23 @@ class Model:
         with open(frozen_filename, "wb") as ofile:
             ofile.write(frozen_graph.SerializeToString())
 
+    def prediction(self, test_data_path):
+        from PIL import Image
+        import numpy as np
+        test_images = glob(os.path.join(test_data_path, "*.jpg"))
+        for impath in test_images:
+            img = Image.open(impath)
+            img = img.resize(self.input_shape[:2])
+            img = np.expand_dims(np.array(img), axis=0) / 255.0
+            output = self.model.predict(img, batch_size=1)
+            print(output)
+            pred = np.argmax(output)
+            basename = os.path.basename(impath)
+            if pred:
+                print("{} : Prediction -  Dog".format(basename))
+            else:
+                print("{} : Prediction -  Cat".format(basename))
+
 
 def test_case():
     try:
@@ -112,6 +130,16 @@ def test_case2():
     print("done")
 
 
+def test_case3():
+    final_checkpoint = "/home/codesteller/workspace/ml_workspace/trt-custom-plugin/saved_model/" \
+                       "checkpoints/saved_model-0005.h5"
+    test_data = "../test_data"
+    cnn_model = Model(input_shape=(150, 150, 3))
+    cnn_model.build_model()
+    cnn_model.convert_checkpoint(final_checkpoint)
+    cnn_model.prediction(test_data)
+
+
 if __name__ == "__main__":
     if test_case():
         print("Test Case Passed")
@@ -119,4 +147,5 @@ if __name__ == "__main__":
         print("Test Case Passed")
 
     test_case2()
+    test_case3()
 

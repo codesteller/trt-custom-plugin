@@ -4,10 +4,6 @@ import uff
 import graphsurgeon as gs
 from tf_utils.model import Model
 from keras.backend import get_session
-
-import pycuda.driver as cuda
-# This import causes pycuda to automatically manage CUDA context creation and cleanup.
-import pycuda.autoinit
 import os
 
 
@@ -45,43 +41,10 @@ def build_engine(model_file, TRT_LOGGER):
         return builder.build_cuda_engine(network)
 
 
-class HostDeviceMem(object):
-    def __init__(self, host_mem, device_mem):
-        self.host = host_mem
-        self.device = device_mem
-
-    def __str__(self):
-        return "Host:\n" + str(self.host) + "\nDevice:\n" + str(self.device)
-
-    def __repr__(self):
-        return self.__str__()
-
-
-def allocate_buffers(engine):
-    inputs = []
-    outputs = []
-    bindings = []
-    stream = cuda.Stream()
-    for binding in engine:
-        size = trt.volume(engine.get_binding_shape(binding)) * engine.max_batch_size
-        dtype = trt.nptype(engine.get_binding_dtype(binding))
-        # Allocate host and device buffers
-        host_mem = cuda.pagelocked_empty(size, dtype)
-        device_mem = cuda.mem_alloc(host_mem.nbytes)
-        # Append the device buffer to device bindings.
-        bindings.append(int(device_mem))
-        # Append to the appropriate list.
-        if engine.binding_is_input(binding):
-            inputs.append(HostDeviceMem(host_mem, device_mem))
-        else:
-            outputs.append(HostDeviceMem(host_mem, device_mem))
-    return inputs, outputs, bindings, stream
-
-
 def main():
     # Save Keras Model to Tensorflow Checkpoint
     final_checkpoint = "/home/codesteller/workspace/ml_workspace/trt-custom-plugin/saved_model/" \
-                       "checkpoints/saved_model-0001.h5"
+                       "checkpoints/saved_model-0005.h5"
     cnn_model = Model(input_shape=(150, 150, 3))
     cnn_model.build_model()
     cnn_model.convert_checkpoint(final_checkpoint)

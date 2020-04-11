@@ -4,7 +4,7 @@ from dataset.prepare_dataset import DataBase
 
 # Hyper-parameters
 batch_size = 128
-epochs = 1
+epochs = 5
 learning_rate = 0.001
 input_shape = (150, 150, 3)
 
@@ -27,6 +27,7 @@ cnn_model.model.summary()
 
 # Train Model
 cnn_model.train_model(train_generator, valid_generator)
+cnn_model.prediction("./test_data")
 
 # Save Keras Model to Tensorflow Checkpoint
 str_epoch = str(epochs).zfill(4)

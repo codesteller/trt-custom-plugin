@@ -56,8 +56,8 @@ class Model:
         print("Model built and compiled successfully")
 
     @staticmethod
-    def gelu_activation(_input):
-        return 0.5 * _input * (1 + tf.tanh(tf.sqrt(2 / pi) * (_input + 0.044715 * tf.pow(_input, 3))))
+    def gelu_activation(_input, alpha=1):
+        return 0.5 * _input * (alpha + tf.tanh(tf.sqrt(2 / pi) * (_input + 0.044715 * tf.pow(_input, 3))))
 
     def train_model(self, train_data_gen, valid_data_gen):
         checkpoint_dir = os.path.dirname(self.checkpoint_path)

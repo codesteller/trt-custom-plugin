@@ -5,28 +5,48 @@ import graphsurgeon as gs
 from tf_utils.model import Model
 from keras.backend import get_session
 import os
+import ctypes
+
+# Add plugin compiled library
+ctypes.CDLL("/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/libgelu.so")
+
+
+def create_plugin_node(dynamic_graph):
+    gelu_node = gs.create_plugin_node(name="GeluActivation", op="Swish_TRT")
+    namespace_plugin_map = {"GeluActivation": gelu_node}
+    dynamic_graph.collapse_namespaces(namespace_plugin_map)
 
 
 def convert_to_uff(model, frozen_filename, uff_filename):
     # First freeze the graph and remove training nodes.
     output_names = model.output.op.name
+    # output_names = "dense_2/MatMul"
     sess = get_session()
     frozen_graph = tf.graph_util.convert_variables_to_constants(sess, sess.graph.as_graph_def(), [output_names])
     frozen_graph = tf.graph_util.remove_training_nodes(frozen_graph)
     # Save the model
-    with open(frozen_filename, "wb") as ofile:
-        ofile.write(frozen_graph.SerializeToString())
+    with open(frozen_filename, "wb") as fptr:
+        fptr.write(frozen_graph.SerializeToString())
 
     tf.io.write_graph(sess.graph_def,
-                      '/home/codesteller/workspace/ml_workspace/trt-custom-plugin/saved_model/frozen_model',
-                      'train.pbtxt')
+                      '/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/saved_model/frozen_model',
+                      'train.pbtxt', as_text=True)
 
-    nodes = [n.name for n in tf.get_default_graph().as_graph_def().node]
-    print(nodes)
+    print_graphdef(tf.get_default_graph().as_graph_def(), '/home/codesteller/workspace/ml_workspace/trt_ws/'
+                                                          'trt-custom-plugin/saved_model/frozen_model/train.txt')
 
-    uff_model = uff.from_tensorflow(frozen_graph, [output_names])
-    with open(uff_filename, "wb") as ofile:
-        ofile.write(uff_model)
+
+    # Transform graph using graphsurgeon to map unsupported TensorFlow
+    # operations to appropriate TensorRT custom layer plugins
+    dynamic_graph = gs.DynamicGraph(frozen_graph)
+    create_plugin_node(dynamic_graph)
+
+    print_dynamic_graph(dynamic_graph, filename='/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/'
+                                                'saved_model/frozen_model/final_node_graph.txt')
+
+    uff_model = uff.from_tensorflow(dynamic_graph, [output_names])
+    with open(uff_filename, "wb") as fptr:
+        fptr.write(uff_model)
 
 
 def build_engine(model_file, TRT_LOGGER):
@@ -67,6 +87,24 @@ def main():
 
     with open(engine_filename, "wb") as f:
         f.write(engine.serialize())
+
+
+def print_dynamic_graph(dynamic_graph, filename='./models/final_node_graph.txt'):
+    nodes = [n for n in dynamic_graph]
+    with open(filename, 'w+') as fptr:
+        for i, node in enumerate(nodes):
+            fptr.writelines('%d--%s\t%s\n' % (i, node.name, node.op))
+            for i, n in enumerate(node.input):
+                fptr.writelines('|--- %d --- %s\n' % (i, n))
+
+
+def print_graphdef(graphdef, filename='./models/final_node_graph.txt'):
+    nodes = [n for n in graphdef.node]
+    with open(filename, 'w+') as fptr:
+        for i, node in enumerate(nodes):
+            fptr.writelines('%d--%s\t%s\n' % (i, node.name, node.op))
+            for i, n in enumerate(node.input):
+                fptr.writelines('|--- %d --- %s\n' % (i, n))
 
 
 if __name__ == '__main__':

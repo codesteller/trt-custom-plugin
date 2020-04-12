@@ -43,11 +43,12 @@ def build_engine(model_file, TRT_LOGGER):
 
 def main():
     # Save Keras Model to Tensorflow Checkpoint
-    final_checkpoint = "/home/codesteller/workspace/ml_workspace/trt-custom-plugin/saved_model/" \
+    final_checkpoint = "/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/saved_model/" \
                        "checkpoints/saved_model-0005.h5"
     cnn_model = Model(input_shape=(150, 150, 3))
     cnn_model.build_model()
-    cnn_model.convert_checkpoint(final_checkpoint)
+    # cnn_model.convert_checkpoint(final_checkpoint)
+    cnn_model.model.load_weights(final_checkpoint)
 
     frozen_filename = "../saved_model/frozen_model/model.pb"
     uff_filename = "../saved_model/frozen_model/model.uff"

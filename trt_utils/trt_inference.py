@@ -71,8 +71,12 @@ with engine.create_execution_context() as context:
     for impath in test_images:
         img = Image.open(impath)
         img = img.resize((150, 150))
-        img = np.expand_dims(np.array(img), axis=0) / 255.0
-        # img.ravel()
+        img = np.array(img, dtype=np.float32)
+        img = np.transpose(img, (2, 0, 1))
+        img = np.expand_dims(img, axis=0) / 255.0
+        img = img.ravel()
+        inputs[0].host = img
+
         [output] = do_inference(context, bindings=bindings, inputs=inputs, outputs=outputs, stream=stream)
         print(output)
         pred = np.argmax(output)

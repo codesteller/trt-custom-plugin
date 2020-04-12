@@ -1,10 +1,13 @@
 import tensorflow as tf
+from numpy import pi
 from keras.models import Sequential, load_model
-from keras.layers import InputLayer, Dense, Flatten, Activation, Conv2D, MaxPooling2D, LeakyReLU
+from keras.layers import Layer, InputLayer, Dense, Flatten, Activation, Conv2D, MaxPooling2D, LeakyReLU
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import Adam
 from keras.backend import get_session
+from keras.utils.generic_utils import get_custom_objects
 import os
+from glob import glob
 
 
 class Model:
@@ -25,12 +28,13 @@ class Model:
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.epochs = epochs
+        get_custom_objects().update({'gelu_activation': Activation(self.gelu_activation)})
 
     def build_model(self):
         self.model.add(InputLayer(input_shape=self.input_shape))
         self.model.add(Conv2D(32, kernel_size=(3, 3), activation='linear',
                               input_shape=self.input_shape, padding='same'))
-        self.model.add(Activation('relu'))
+        self.model.add(Activation('gelu_activation', name='GeluActivation'))
         self.model.add(MaxPooling2D((2, 2), padding='same'))
         self.model.add(Conv2D(64, (3, 3), activation='linear', padding='same'))
         self.model.add(Activation('relu'))
@@ -41,7 +45,7 @@ class Model:
         self.model.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
         self.model.add(Flatten())
         self.model.add(Dense(128, activation='linear'))
-        self.model.add(LeakyReLU(alpha=0.3))
+        # self.model.add(LeakyReLU(alpha=0.3))
         self.model.add(Dense(self.num_classes, activation='softmax'))
 
         opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
@@ -50,6 +54,10 @@ class Model:
                            loss='binary_crossentropy',
                            metrics=['accuracy'])
         print("Model built and compiled successfully")
+
+    @staticmethod
+    def gelu_activation(_input):
+        return 0.5 * _input * (1 + tf.tanh(tf.sqrt(2 / pi) * (_input + 0.044715 * tf.pow(_input, 3))))
 
     def train_model(self, train_data_gen, valid_data_gen):
         checkpoint_dir = os.path.dirname(self.checkpoint_path)
@@ -92,6 +100,23 @@ class Model:
         with open(frozen_filename, "wb") as ofile:
             ofile.write(frozen_graph.SerializeToString())
 
+    def prediction(self, test_data_path):
+        from PIL import Image
+        import numpy as np
+        test_images = glob(os.path.join(test_data_path, "*.jpg"))
+        for impath in test_images:
+            img = Image.open(impath)
+            img = img.resize(self.input_shape[:2])
+            img = np.expand_dims(np.array(img), axis=0) / 255.0
+            output = self.model.predict(img, batch_size=1)
+            print(output)
+            pred = np.argmax(output)
+            basename = os.path.basename(impath)
+            if pred:
+                print("{} : Prediction -  Dog".format(basename))
+            else:
+                print("{} : Prediction -  Cat".format(basename))
+
 
 def test_case():
     try:
@@ -112,11 +137,22 @@ def test_case2():
     print("done")
 
 
+def test_case3():
+    final_checkpoint = "/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/saved_model/" \
+                       "checkpoints/saved_model-0005.h5"
+    test_data = "../test_data"
+    cnn_model = Model(input_shape=(150, 150, 3))
+    cnn_model.build_model()
+    cnn_model.model.load_weights(final_checkpoint)
+    # cnn_model.convert_checkpoint(final_checkpoint)
+    cnn_model.prediction(test_data)
+
+
 if __name__ == "__main__":
-    if test_case():
-        print("Test Case Passed")
-    else:
-        print("Test Case Passed")
-
-    test_case2()
-
+    # if test_case():
+    #     print("Test Case Passed")
+    # else:
+    #     print("Test Case Passed")
+    #
+    # test_case2()
+    test_case3()

@@ -8,11 +8,11 @@ import os
 import ctypes
 
 # Add plugin compiled library
-ctypes.CDLL("/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/libgelu.so")
+ctypes.CDLL("/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/geluPluginv2/build/libGeluPlugin.so")
 
 
 def create_plugin_node(dynamic_graph):
-    gelu_node = gs.create_plugin_node(name="GeluActivation", op="Swish_TRT")
+    gelu_node = gs.create_plugin_node(name="GeluActivation", op="CustomGeluPlugin")
     namespace_plugin_map = {"GeluActivation": gelu_node}
     dynamic_graph.collapse_namespaces(namespace_plugin_map)
 
@@ -34,7 +34,6 @@ def convert_to_uff(model, frozen_filename, uff_filename):
 
     print_graphdef(tf.get_default_graph().as_graph_def(), '/home/codesteller/workspace/ml_workspace/trt_ws/'
                                                           'trt-custom-plugin/saved_model/frozen_model/train.txt')
-
 
     # Transform graph using graphsurgeon to map unsupported TensorFlow
     # operations to appropriate TensorRT custom layer plugins
@@ -64,7 +63,7 @@ def build_engine(model_file, TRT_LOGGER):
 def main():
     # Save Keras Model to Tensorflow Checkpoint
     final_checkpoint = "/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/saved_model/" \
-                       "checkpoints/saved_model-0005.h5"
+                       "checkpoints/saved_model-0001.h5"
     cnn_model = Model(input_shape=(150, 150, 3))
     cnn_model.build_model()
     # cnn_model.convert_checkpoint(final_checkpoint)

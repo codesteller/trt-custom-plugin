@@ -1,5 +1,6 @@
 import tensorflow as tf
 from numpy import pi
+from keras.backend import sigmoid
 from keras.models import Sequential, load_model
 from keras.layers import Layer, InputLayer, Dense, Flatten, Activation, Conv2D, MaxPooling2D, LeakyReLU
 from keras.callbacks import ModelCheckpoint, TensorBoard
@@ -29,12 +30,13 @@ class Model:
         self.learning_rate = learning_rate
         self.epochs = epochs
         get_custom_objects().update({'gelu_activation': Activation(self.gelu_activation)})
+        # get_custom_objects().update({'swish': Activation(self.swish)})
 
     def build_model(self):
         self.model.add(InputLayer(input_shape=self.input_shape))
         self.model.add(Conv2D(32, kernel_size=(3, 3), activation='linear',
                               input_shape=self.input_shape, padding='same'))
-        self.model.add(Activation('gelu_activation', name='GeluActivation'))
+        self.model.add(Activation('relu'))
         self.model.add(MaxPooling2D((2, 2), padding='same'))
         self.model.add(Conv2D(64, (3, 3), activation='linear', padding='same'))
         self.model.add(Activation('relu'))
@@ -44,8 +46,9 @@ class Model:
         self.model.add(Activation('relu'))
         self.model.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
         self.model.add(Flatten())
-        self.model.add(Dense(128, activation='linear'))
-        # self.model.add(LeakyReLU(alpha=0.3))
+        self.model.add(Dense(128, activation='gelu_activation'))
+        # self.model.add(Activation('gelu_activation', name='GeluActivation'))
+        # self.model.add(Activation('swish', name='swish'))
         self.model.add(Dense(self.num_classes, activation='softmax'))
 
         opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
@@ -56,8 +59,12 @@ class Model:
         print("Model built and compiled successfully")
 
     @staticmethod
+    def swish(x, beta=1):
+        return (x * sigmoid(beta * x))
+
+    @staticmethod
     def gelu_activation(_input, alpha=1):
-        return 0.5 * _input * (alpha + tf.tanh(tf.sqrt(2 / pi) * (_input + 0.044715 * tf.pow(_input, 3))))
+        return 0.5 * _input * (alpha + tf.tanh(tf.sqrt(2 / pi) * (_input + 0.044715 * _input * _input * _input)))
 
     def train_model(self, train_data_gen, valid_data_gen):
         checkpoint_dir = os.path.dirname(self.checkpoint_path)
@@ -90,7 +97,7 @@ class Model:
         sess = get_session()
         saver.save(sess, save_path)
 
-    def save(self, frozen_filename):
+    def save_frozen(self, frozen_filename):
         # First freeze the graph and remove training nodes.
         output_names = self.model.output.op.name
         sess = get_session()

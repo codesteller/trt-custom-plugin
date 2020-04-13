@@ -4,7 +4,7 @@ from dataset.prepare_dataset import DataBase
 
 # Hyper-parameters
 batch_size = 128
-epochs = 5
+epochs = 1
 learning_rate = 0.001
 input_shape = (150, 150, 3)
 

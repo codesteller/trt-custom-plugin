@@ -6,6 +6,10 @@ from PIL import Image
 import numpy as np
 from glob import glob
 import os
+import ctypes
+
+# Add plugin compiled library
+ctypes.CDLL("/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/geluPluginv2/build/libGeluPlugin.so")
 
 
 class HostDeviceMem(object):
@@ -63,6 +67,7 @@ test_images = glob(os.path.join(TEST_DATA_PATH, "*.jpg"))[:TEST_SAMPLES]
 
 
 with open(ENGINE_PATH, "rb") as f, trt.Runtime(TRT_LOGGER) as runtime:
+    # trt.init_libnvinfer_plugins(TRT_LOGGER)
     # Note that we have to provide the plugin factory when deserializing an engine built with an IPlugin or IPluginExt.
     engine = runtime.deserialize_cuda_engine(f.read())
 

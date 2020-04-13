@@ -108,24 +108,26 @@ GeluPlugin::GeluPlugin(const std::string name, const DataType type, const Weight
 GeluPlugin::GeluPlugin(const std::string name, const void* data, size_t length)
     : mLayerName(name)
 {
-    // gLogVerbose << "Starting to deserialize GELU plugin" << std::endl;
+    std::cout << "Starting to deserialize GELU plugin" << std::endl;
+
+    deserialize_value(&data, &length, &mHasBias);
+    deserialize_value(&data, &length, &mInputVolume);
     deserialize_value(&data, &length, &mType);
     deserialize_value(&data, &length, &mLd);
-    deserialize_value(&data, &length, &mHasBias);
 
-    // gLogVerbose << "Deserialized parameters: mLd: " << mLd << ", mHasBias: " << mHasBias << std::endl;
+    std::cout << "Deserialized parameters: mInputVolume: " << mInputVolume << ", mHasBias: " << mHasBias << std::endl;
     if (mHasBias)
     {
         const char* d = static_cast<const char*>(data);
-        // gLogVerbose << "Deserializing Bias" << std::endl;
+        std::cout << "Deserializing Bias" << std::endl;
         if (mLd <= 0)
         {
-            // gLogError << "Gelu+bias: deserialization inconsistent. HasBias but mLd is 0" << std::endl;
+            std::cout << "Gelu+bias: deserialization inconsistent. HasBias but mLd is 0" << std::endl;
         }
         const size_t wordSize = getElementSize(mType);
         mBiasDev = deserToDev<char>(d, mLd * wordSize);
     }
-    // gLogVerbose << "Finished deserializing GELU plugin" << std::endl;
+    std::cout << "Finished deserializing GELU plugin" << std::endl;
     mBias.values = nullptr;
     mBias.count = mLd;
 }
@@ -151,7 +153,7 @@ Dims GeluPlugin::getOutputDimensions(int index, const Dims* inputs, int nbInputD
     assert(nbInputDims == 1);
     assert(index == 0);
 
-    // Clipping doesn't change input dimension, so output Dims will be the same as input Dims
+    // Activation doesn't change input dimension, so output Dims will be the same as input Dims
     return *inputs;
 }
 
@@ -162,8 +164,8 @@ int GeluPlugin::initialize()
 
 int GeluPlugin::enqueue(int batchSize, const void* const* inputs, void** outputs, void*, cudaStream_t stream)
 {
-    const int inputVolume = 1;
-
+    const int inputVolume = mInputVolume;
+//    mType = DataType::kFLOAT;
     int status = -1;
 
     // Our plugin outputs only one tensor
@@ -212,14 +214,22 @@ int GeluPlugin::enqueue(int batchSize, const void* const* inputs, void** outputs
 
 size_t GeluPlugin::getSerializationSize() const
 {
-    return 2 * sizeof(float);
+    const size_t wordSize = getElementSize(mType);
+    const size_t biasSize = mHasBias ? mLd * wordSize : 0;
+    return sizeof(mType) + sizeof(mHasBias) + sizeof(mLd) + sizeof(mInputVolume) + biasSize;
 }
 
-void GeluPlugin::serialize(void* buffer) const 
+void GeluPlugin::serialize(void* buffer) const
 {
+    serialize_value(&buffer, mHasBias);
+    serialize_value(&buffer, mInputVolume);
     serialize_value(&buffer, mType);
     serialize_value(&buffer, mLd);
-    serialize_value(&buffer, mHasBias);
+
+//    std::cout << mType << std::endl;
+    std::cout << mLd << std::endl;
+    std::cout << mHasBias << std::endl;
+
     if (mHasBias)
     {
         char *d = static_cast<char*>(buffer);
@@ -227,7 +237,7 @@ void GeluPlugin::serialize(void* buffer) const
         const size_t biasSize = mHasBias ? mLd * wordSize : 0;
         if (biasSize <= 0)
         {
-            // gLogError << "Gelu+bias: bias size inconsistent" << std::endl;
+            std::cout << "Gelu+bias: bias size inconsistent" << std::endl;
         }
         serFromDev(d, mBiasDev, mLd * wordSize);
     }
@@ -246,6 +256,7 @@ void GeluPlugin::configureWithFormat(const Dims* inputs, int nbInputs, const Dim
         volume *= inputs->d[i];
     }
     mInputVolume = volume;
+    std::cout << "mInputVolume" << mInputVolume << std::endl;
 }
 
 bool GeluPlugin::supportsFormat(DataType type, PluginFormat format) const
@@ -273,7 +284,7 @@ IPluginV2* GeluPlugin::clone() const
     return new GeluPlugin(mLayerName, mType);
 }
 
-void GeluPlugin::setPluginNamespace(const char* libNamespace) 
+void GeluPlugin::setPluginNamespace(const char* libNamespace)
 {
     mNamespace = libNamespace;
 }
@@ -285,6 +296,8 @@ const char* GeluPlugin::getPluginNamespace() const
 
 GeluPluginCreator::GeluPluginCreator()
 {
+    mPluginAttributes.emplace_back(PluginField("typeId", nullptr, PluginFieldType::kINT32, 1));
+    mPluginAttributes.emplace_back(PluginField("bias", nullptr, PluginFieldType::kINT32, 1));
     // Fill PluginFieldCollection with PluginField arguments metadata
     mFC.nbFields = mPluginAttributes.size();
     mFC.fields = mPluginAttributes.data();
@@ -309,19 +322,23 @@ IPluginV2* GeluPluginCreator::createPlugin(const char* name, const PluginFieldCo
 {
     Weights bias{DataType::kFLOAT, nullptr, 0};
     int typeId = -1;
+    std::cout << "fc fields" << fc->nbFields << std::endl;
     for (int i = 0; i < fc->nbFields; i++)
     {
         std::string field_name(fc->fields[i].name);
+        std::cout << field_name << std::endl;
 
-        if (field_name.compare("type_id") == 0)
+        std::cout << *static_cast<const int*>(fc->fields[i].data) << std::endl;
+
+        if (field_name.compare("typeId") == 0)
         {
             typeId = *static_cast<const int*>(fc->fields[i].data);
-            // gLogVerbose << "Building typeId: " << typeId << std::endl;
+            std::cout << "Building typeId: " << typeId << std::endl;
         }
 
         if (field_name.compare("bias") == 0)
         {
-            // gLogVerbose << "Building bias...\n";
+            std::cout << "Building bias...\n";
             bias.values = fc->fields[i].data;
             bias.count = fc->fields[i].length;
             bias.type = fieldTypeToDataType(fc->fields[i].type);
@@ -330,11 +347,11 @@ IPluginV2* GeluPluginCreator::createPlugin(const char* name, const PluginFieldCo
 
     if (typeId < 0 || typeId > 3)
     {
-        // gLogError << "GELU: invalid typeId " << typeId << std::endl;
+        std::cout << "GELU: invalid typeId " << typeId << std::endl;
         return nullptr;
     }
     DataType type = static_cast<DataType>(typeId);
-    // gLogVerbose << "Creating GeluPlugin...\n";
+    std::cout << "Creating GeluPlugin...\n";
     if (bias.values == nullptr)
     {
         return new GeluPlugin(name, type);

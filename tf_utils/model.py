@@ -30,7 +30,6 @@ class Model:
         self.learning_rate = learning_rate
         self.epochs = epochs
         get_custom_objects().update({'gelu_activation': Activation(self.gelu_activation)})
-        # get_custom_objects().update({'swish': Activation(self.swish)})
 
     def build_model(self):
         self.model.add(InputLayer(input_shape=self.input_shape))
@@ -46,9 +45,8 @@ class Model:
         self.model.add(Activation('relu'))
         self.model.add(MaxPooling2D(pool_size=(2, 2), padding='same'))
         self.model.add(Flatten())
-        self.model.add(Dense(128, activation='gelu_activation'))
-        # self.model.add(Activation('gelu_activation', name='GeluActivation'))
-        # self.model.add(Activation('swish', name='swish'))
+        self.model.add(Dense(128, activation="linear"))
+        self.model.add(Activation('gelu_activation', name='GeluActivation'))
         self.model.add(Dense(self.num_classes, activation='softmax'))
 
         opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
@@ -57,10 +55,6 @@ class Model:
                            loss='binary_crossentropy',
                            metrics=['accuracy'])
         print("Model built and compiled successfully")
-
-    @staticmethod
-    def swish(x, beta=1):
-        return (x * sigmoid(beta * x))
 
     @staticmethod
     def gelu_activation(_input, alpha=1):

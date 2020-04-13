@@ -12,7 +12,7 @@ ctypes.CDLL("/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/g
 
 
 def create_plugin_node(dynamic_graph):
-    gelu_node = gs.create_plugin_node(name="GeluActivation", op="CustomGeluPlugin")
+    gelu_node = gs.create_plugin_node(name="GeluActivation", op="CustomGeluPlugin", typeId=0)
     namespace_plugin_map = {"GeluActivation": gelu_node}
     dynamic_graph.collapse_namespaces(namespace_plugin_map)
 

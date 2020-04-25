@@ -57,7 +57,7 @@
 
 using namespace nvinfer1;
 
-// Clip plugin specific constants
+// GELU plugin specific constants
 namespace {
     static const char* GELU_PLUGIN_VERSION{"1"};
     static const char* GELU_PLUGIN_NAME{"CustomGeluPlugin"};
@@ -165,7 +165,6 @@ int GeluPlugin::initialize()
 int GeluPlugin::enqueue(int batchSize, const void* const* inputs, void** outputs, void*, cudaStream_t stream)
 {
     const int inputVolume = mInputVolume;
-//    mType = DataType::kFLOAT;
     int status = -1;
 
     // Our plugin outputs only one tensor

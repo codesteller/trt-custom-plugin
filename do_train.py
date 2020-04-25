@@ -10,7 +10,7 @@ input_shape = (150, 150, 3)
 
 # Setup Directories
 checkpoint_path = "saved_model/checkpoints/saved_model-{epoch:04d}.h5"
-dataset_dir = "/home/codesteller/datasets/kaggle/cv/dogs_cats/train_data"
+dataset_dir = "/datasets/dogs_cats/train_data/"
 
 # Prepare Dataset
 db = DataBase(dataset_dir, input_shape=input_shape, batch_size=batch_size)

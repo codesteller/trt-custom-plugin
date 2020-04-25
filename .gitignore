@@ -134,3 +134,4 @@ dmypy.json
 
 # Output Directories
 saved_model*
+geluPluginv2/build*

@@ -8,7 +8,7 @@ import os
 import ctypes
 
 # Add plugin compiled library
-ctypes.CDLL("../build/libGeluPlugin.so")
+ctypes.CDLL("./geluPluginv2/build_trt7/libGeluPlugin.so")
 
 
 def create_plugin_node(dynamic_graph):
@@ -31,19 +31,17 @@ def convert_to_uff(model, frozen_filename, uff_filename):
         fptr.write(frozen_graph.SerializeToString())
 
     tf.io.write_graph(sess.graph_def,
-                      '/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/saved_model/frozen_model',
+                      './saved_model/frozen_model',
                       'train.pbtxt', as_text=True)
 
-    print_graphdef(tf.get_default_graph().as_graph_def(), '/home/codesteller/workspace/ml_workspace/trt_ws/'
-                                                          'trt-custom-plugin/saved_model/frozen_model/train.txt')
+    print_graphdef(tf.get_default_graph().as_graph_def(), './saved_model/frozen_model/train.txt')
 
     # Transform graph using graphsurgeon to map unsupported TensorFlow
     # operations to appropriate TensorRT custom layer plugins
     dynamic_graph = gs.DynamicGraph(frozen_graph)
     create_plugin_node(dynamic_graph)
 
-    print_dynamic_graph(dynamic_graph, filename='/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/'
-                                                'saved_model/frozen_model/final_node_graph.txt')
+    print_dynamic_graph(dynamic_graph, filename='./saved_model/frozen_model/final_node_graph.txt')
 
     uff_model = uff.from_tensorflow(dynamic_graph, [output_names])
     with open(uff_filename, "wb") as fptr:
@@ -64,18 +62,17 @@ def build_engine(model_file, TRT_LOGGER):
 
 def main():
     # Save Keras Model to Tensorflow Checkpoint
-    final_checkpoint = "/home/codesteller/workspace/ml_workspace/trt_ws/trt-custom-plugin/saved_model/" \
-                       "checkpoints/saved_model-0001.h5"
+    final_checkpoint = "./saved_model/checkpoints/saved_model-0001.h5"
     cnn_model = Model(input_shape=(150, 150, 3))
     cnn_model.build_model()
     # cnn_model.convert_checkpoint(final_checkpoint)
     cnn_model.model.load_weights(final_checkpoint)
 
-    frozen_filename = "../saved_model/frozen_model/model.pb"
-    uff_filename = "../saved_model/frozen_model/model.uff"
+    frozen_filename = "saved_model/frozen_model/model.pb"
+    uff_filename = "saved_model/frozen_model/model.uff"
 
     if not os.path.exists("../saved_model/frozen_model"):
-        os.makedirs("../saved_model/frozen_model")
+        os.makedirs("saved_model/frozen_model")
 
     convert_to_uff(model=cnn_model.model,
                    frozen_filename=frozen_filename,
@@ -83,7 +80,7 @@ def main():
 
     TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
 
-    engine_filename = "../saved_model/frozen_model/model.engine"
+    engine_filename = "saved_model/frozen_model/model.engine"
     engine = build_engine(uff_filename, TRT_LOGGER)
 
     with open(engine_filename, "wb") as f:

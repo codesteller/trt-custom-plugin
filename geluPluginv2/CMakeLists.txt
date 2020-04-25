@@ -32,12 +32,18 @@ endmacro()
 
 # -------- CONFIGURATION --------
 find_package(CUDA REQUIRED)
+find_package(CUDA REQUIRED)
 
-#set_ifndef(TRT_LIB /home/codesteller/apsoft/mlstack/tensorrt/TensorRT-7.0.0.11/targets/x86_64-linux-gnu/lib)
-#set_ifndef(TRT_INCLUDE /home/codesteller/apsoft/mlstack/tensorrt/TensorRT-7.0.0.11/include)
+#set_ifndef(TRT_LIB /usr/lib/x86_64-linux-gnu)
+#set_ifndef(TRT_INCLUDE /usr/include/x86_64-linux-gnu)
+#set_ifndef(CUDA_ROOT /usr/local/cuda)
 
-set_ifndef(TRT_LIB /home/codesteller/apsoft/mlstack/TensorRT-6.0.1.8/lib)
-set_ifndef(TRT_INCLUDE /home/codesteller/apsoft/mlstack/TensorRT-6.0.1.8/include)
+#set_ifndef(TRT_LIB /home/codesteller/apsoft/mlstack/TensorRT-6.0.1.8/lib)
+#set_ifndef(TRT_INCLUDE /home/codesteller/apsoft/mlstack/TensorRT-6.0.1.8/include)
+
+set_ifndef(TRT_LIB /home/codesteller/apsoft/mlstack/tensorrt/TensorRT-7.0.0.11/lib)
+set_ifndef(TRT_INCLUDE /home/codesteller/apsoft/mlstack/tensorrt/TensorRT-7.0.0.11/include)
+
 set_ifndef(CUDA_ROOT /usr/local/cuda)
 
 # Find dependencies:
